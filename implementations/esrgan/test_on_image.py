@@ -21,7 +21,7 @@ os.makedirs("images/outputs", exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define model and load model checkpoint
-generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks).to(device)
+generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks,num_upsample=1).to(device)
 generator.load_state_dict(torch.load(opt.checkpoint_model))
 generator.eval()
 
@@ -36,4 +36,4 @@ with torch.no_grad():
 
 # Save image
 fn = opt.image_path.split("/")[-1]
-save_image(sr_image, f"images/outputs/sr-{fn}")
+save_image(sr_image, f"/var/www/outputs/sr-{fn}")

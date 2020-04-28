@@ -50,15 +50,16 @@ parser.add_argument("--residual_blocks", type=int, default=23, help="number of r
 parser.add_argument("--warmup_batches", type=int, default=500, help="number of batches with pixel-wise loss only")
 parser.add_argument("--lambda_adv", type=float, default=5e-3, help="adversarial loss weight")
 parser.add_argument("--lambda_pixel", type=float, default=1e-2, help="pixel-wise loss weight")
+parser.add_argument("--upscale_factor", type=int, default=4, help="upscale factor")
 opt = parser.parse_args()
 print(opt)
-
+UPSCALE_FACTOR = opt.upscale_factor
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 hr_shape = (opt.hr_height, opt.hr_width)
 
 # Initialize generator and discriminator
-generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks).to(device)
+generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks, num_upsample=int(math.log2(UPSCALE_FACTOR))).to(device)
 discriminator = Discriminator(input_shape=(opt.channels, *hr_shape)).to(device)
 feature_extractor = FeatureExtractor().to(device)
 
@@ -82,7 +83,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
 
 dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, hr_shape=hr_shape),
+    ImageDataset("../../data/%s" % opt.dataset_name, hr_shape=hr_shape, upscale_factor=UPSCALE_FACTOR),
     batch_size=opt.batch_size,
     shuffle=True,
     num_workers=opt.n_cpu,
@@ -185,7 +186,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         if batches_done % opt.sample_interval == 0:
             # Save image grid with upsampled inputs and ESRGAN outputs
-            imgs_lr = nn.functional.interpolate(imgs_lr, scale_factor=4)
+            imgs_lr = nn.functional.interpolate(imgs_lr, scale_factor=UPSCALE_FACTOR)
             img_grid = denormalize(torch.cat((imgs_lr, gen_hr), -1))
             save_image(img_grid, "images/training/%d.png" % batches_done, nrow=1, normalize=False)
 
