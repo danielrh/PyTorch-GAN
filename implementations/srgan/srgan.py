@@ -46,15 +46,17 @@ parser.add_argument("--hr_width", type=int, default=256, help="high res. image w
 parser.add_argument("--channels", type=int, default=3, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=100, help="interval between saving image samples")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
+parser.add_argument("--upscale_factor", type=int, default=4, help="upscale factor")
 opt = parser.parse_args()
 print(opt)
+UPSCALE_FACTOR = opt.upscale_factor
 
 cuda = torch.cuda.is_available()
 
 hr_shape = (opt.hr_height, opt.hr_width)
 
 # Initialize generator and discriminator
-generator = GeneratorResNet()
+generator = GeneratorResNet(num_upsample=int(math.log2(UPSCALE_FACTOR)))
 discriminator = Discriminator(input_shape=(opt.channels, *hr_shape))
 feature_extractor = FeatureExtractor()
 
@@ -84,7 +86,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
 dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, hr_shape=hr_shape),
+    ImageDataset("../../data/%s" % opt.dataset_name, hr_shape=hr_shape, upscale_factor=UPSCALE_FACTOR),
     batch_size=opt.batch_size,
     shuffle=True,
     num_workers=opt.n_cpu,
@@ -156,7 +158,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             # Save image grid with upsampled inputs and SRGAN outputs
-            imgs_lr = nn.functional.interpolate(imgs_lr, scale_factor=4)
+            imgs_lr = nn.functional.interpolate(imgs_lr, scale_factor=UPSCALE_FACTOR)
             gen_hr = make_grid(gen_hr, nrow=1, normalize=True)
             imgs_lr = make_grid(imgs_lr, nrow=1, normalize=True)
             img_grid = torch.cat((imgs_lr, gen_hr), -1)

@@ -1,3 +1,4 @@
+import math
 from models import GeneratorRRDB
 from datasets import denormalize, mean, std
 import torch
@@ -13,15 +14,16 @@ parser.add_argument("--image_path", type=str, required=True, help="Path to image
 parser.add_argument("--checkpoint_model", type=str, required=True, help="Path to checkpoint model")
 parser.add_argument("--channels", type=int, default=3, help="Number of image channels")
 parser.add_argument("--residual_blocks", type=int, default=23, help="Number of residual blocks in G")
+parser.add_argument("--upscale_factor", type=int, default=2, help="Upscale factor")
 opt = parser.parse_args()
 print(opt)
-
+UPSCALE_FACTOR=opt.upscale_factor
 os.makedirs("images/outputs", exist_ok=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define model and load model checkpoint
-generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks,num_upsample=1).to(device)
+generator = GeneratorRRDB(opt.channels, filters=64, num_res_blocks=opt.residual_blocks,num_upsample=int(math.log2(UPSCALE_FACTOR))).to(device)
 generator.load_state_dict(torch.load(opt.checkpoint_model))
 generator.eval()
 
