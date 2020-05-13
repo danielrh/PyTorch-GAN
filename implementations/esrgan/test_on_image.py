@@ -10,7 +10,7 @@ from torchvision.utils import save_image
 from PIL import Image
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--image_path", type=str, required=True, help="Path to image")
+parser.add_argument("image_paths", metavar='image_paths', type=str, nargs='+', help="Path to images")
 parser.add_argument("--checkpoint_model", type=str, required=True, help="Path to checkpoint model")
 parser.add_argument("--channels", type=int, default=3, help="Number of image channels")
 parser.add_argument("--residual_blocks", type=int, default=23, help="Number of residual blocks in G")
@@ -29,13 +29,16 @@ generator.eval()
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
 
-# Prepare input
-image_tensor = Variable(transform(Image.open(opt.image_path))).to(device).unsqueeze(0)
+for image_path in opt.image_paths:
+    # Prepare input
+    image_tensor = Variable(transform(Image.open(image_path))).to(device).unsqueeze(0)
+    
+    # Upsample image
+    with torch.no_grad():
+        sr_image = denormalize(generator(image_tensor)).cpu()
 
-# Upsample image
-with torch.no_grad():
-    sr_image = denormalize(generator(image_tensor)).cpu()
-
-# Save image
-fn = opt.image_path.split("/")[-1]
-save_image(sr_image, f"/var/www/outputs/sr-{fn}")
+    # Save image
+    fn = image_path.split("/")[-1]
+    modn = os.path.basename(opt.checkpoint_model)
+    modn = modn[:modn.rfind(".")]
+    save_image(sr_image, f"/var/www/outputs/sr-{modn}-{fn}")
